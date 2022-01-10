@@ -1,3 +1,4 @@
+--applies to Azure Synapse
 
  -- Get a list of tables and views in the current database
  select table_catalog [database], table_schema [schema], table_name [name], table_type [type]
@@ -52,7 +53,28 @@ go
 
 
 --list all stored procedures dependencies
+select distinct(type), type_desc from sys.all_objects
+--FN,SQL_SCALAR_FUNCTION
+--P,SQL_STORED_PROCEDURE
+--U,USER_TABLE
+--V,VIEW
+--X,EXTENDED_STORED_PROCEDURE
+
+select 
+    name,
+    object_id,
+    schema_id,
+    type,
+    type_desc,
+    create_date,
+    modify_date
+from sys.objects
+
+
 select * from sys.sql_expression_dependencies
+
+
+
 
 SELECT OBJECT_NAME(referencing_id) AS referencing_entity_name,   
     o.type_desc AS referencing_desciption,   
@@ -66,3 +88,82 @@ FROM sys.sql_expression_dependencies AS sed
 INNER JOIN sys.objects AS o ON sed.referencing_id = o.object_id  
 WHERE referencing_id = OBJECT_ID(N'dbo.usp_query_cust_table');  
 GO 
+
+
+
+
+
+--test like '%%'
+select * from dbo.synapse_usp
+where definition like '%ANALYSE.DT_RANGE_ANALYSIS_CUMULATIVE_CONTRIBUTION_CONFIG%'
+or definition like '%[ANALYSE].[DT_RANGE_ANALYSIS_CUMULATIVE_CONTRIBUTION_CONFIG%]'
+
+
+
+drop view dbo.v_outer_join
+
+create view v_outer_join as
+select 
+    p.schema_name,
+    p.routine_name as usp_name,
+    p.definition,
+    t.name1 as table_name1,
+    t.name2 as table_name2
+from 
+    dbo.synapse_usp p, dbo.synapse_table t
+where 1 =1;
+
+
+
+
+create view v_does_contain_raw as
+select 
+    schema_name as usp_schema,
+    usp_name,
+    table_name1 as table_name,
+        CAST(
+            CASE
+                WHEN (definition like '%'+table_name1 +'%') OR (definition like '%'+ table_name2 +'%')
+                THEN 1
+                ELSE 0
+            END AS bit
+        ) as does_contain,
+        definition
+from 
+    dbo.v_outer_join
+
+
+select * from dbo.v_does_contain_raw
+where does_contain = 1
+
+
+
+ create table usp2table(
+  id int identity(1,1),
+  usp_schema varchar(50),
+  usp_name varchar(100),
+  usp_full_name varchar(150),
+  table_schema varchar(50),
+  table_name varchar(100),
+  table_full_name varchar(150)
+  )
+
+
+insert into dbo.usp2table
+(
+  usp_schema,
+  usp_name,
+  usp_full_name,
+  table_schema,
+  table_name,
+  table_full_name
+)
+    SELECT
+    usp_schema,
+    usp_name,
+    usp_schema+'.'+usp_name as usp_full_name,
+    SUBSTRING(table_name, 0, charindex('.', table_name, 0)) as table_schema,
+    SUBSTRING(table_name, charindex('.', table_name, 0)+1,len(table_name)) as table_name,
+    table_name as table_full_name
+    FROM [dbo].[v_does_contain_raw]
+  WHERE [does_contain] = 1
