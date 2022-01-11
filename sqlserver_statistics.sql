@@ -133,6 +133,26 @@ from
     dbo.v_outer_join
 
 
+create view v_sp_does_contain_raw as 
+SELECT [schema_name]
+      ,[usp_name]
+      ,[definition]
+      ,[schema_referenced]
+      ,[usp_referenced]
+      ,[usp_name1]
+      ,[usp_name2]
+      ,CAST(
+            CASE
+                WHEN (definition like '%'+ usp_name1 +'%') OR (definition like '%'+ usp_name2 +'%')
+                THEN 1
+                ELSE 0
+            END AS bit
+        ) as does_contain_usp
+  FROM [dbo].[v_sp_outer_join] 
+
+
+
+
 select * from dbo.v_does_contain_raw
 where does_contain = 1
 
@@ -148,6 +168,17 @@ where does_contain = 1
   table_full_name varchar(150)
   )
 
+
+CREATE TABLE [dbo].[usp2usp](
+    [id] [int] IDENTITY(1,1) NOT NULL,
+    [usp_schema] [varchar](50) NULL,
+    [usp_name] [varchar](100) NULL,
+    [usp_full_name] [varchar](150) NULL,
+    [ref_usp_schema] [varchar](50) NULL,
+    [ref_usp_name] [varchar](100) NULL,
+    [ref_usp_full_name] [varchar](150) NULL
+) ON [PRIMARY]
+GO
 
 insert into dbo.usp2table
 (
@@ -167,3 +198,41 @@ insert into dbo.usp2table
     table_name as table_full_name
     FROM [dbo].[v_does_contain_raw]
   WHERE [does_contain] = 1
+
+
+insert into dbo.usp2usp
+(
+  usp_schema,
+  usp_name,
+  usp_full_name,
+  ref_usp_schema,
+  ref_usp_name,
+  ref_usp_full_name
+)
+    SELECT
+    schema_name,
+    usp_name,
+    schema_name + '.' + usp_name as usp_full_name,
+    schema_referenced,
+    usp_referenced,
+    usp_name1 
+    FROM [dbo].[v_sp_does_contain_raw]
+  WHERE [does_contain_usp] = 1
+  and schema_name + '.' + usp_name <> usp_name1 
+
+
+
+  create view v_sp_outer_join as
+select 
+    p.schema_name,
+    p.routine_name as usp_name,
+    p.definition,
+    t.schema_name as schema_referenced,
+    t.routine_name as usp_referenced,
+    t.schema_name + '.' + t.routine_name as usp_name1,
+    '[' + t.schema_name + '].[' + t.routine_name + ']' as usp_name2
+from 
+    dbo.synapse_usp p, dbo.synapse_sp t
+where 1 =1;
+
+
