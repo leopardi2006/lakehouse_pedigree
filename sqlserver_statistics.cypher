@@ -1,30 +1,74 @@
-//load usp2table.csv to graph db
+//load table.csv to graph db
 
 LOAD CSV WITH HEADERS FROM 'file:///table.csv' AS line
 CREATE (:Table {name: line.name1, schema: line.schema, short_name: line.name, type: line.type, alias: line.name2, row_count: toInteger(line.row_count)})
 
 
-
 MATCH (t:Table)
-WHERE t.type = 'ANALYSE'
+WHERE LEFT(t.schema,7) = 'ANALYSE'
 SET t:Analyse
 RETURN t
 
 
 MATCH (t:Table)
-WHERE t.type = 'PREPARE'
+WHERE LEFT(t.schema,7) = 'PREPARE'
 SET t:Prepare
 RETURN t
 
 MATCH (t:Table)
-WHERE LEFT(t.type,7) = 'PUBLISH'
+WHERE LEFT(t.schema,7) = 'PUBLISH'
 SET t:Publish
 RETURN t
 
 MATCH (t:Table)
-WHERE t.type = 'dbo'
+WHERE t.schema = 'dbo'
 SET t:dbo
 RETURN t
 
 
-//laod usp2usp.csv to graph db
+//load usp.csv to graph db
+
+LOAD CSV WITH HEADERS FROM 'file:///usp.csv' AS line
+CREATE (:Routine {name: line.routine_full_name, schema: line.schema_name, short_name: line.routine_name, type: line.type, last_exe_date: line.last_execution_time, create_date: line.create_date, modify_date: line.modify_date, exe_count: toInteger(line.execution_count)})
+
+MATCH (r:Routine)
+WHERE r.type = 'ANALYSE'
+SET r:Analyse
+RETURN r
+
+MATCH (r:Routine)
+WHERE r.type = 'PREPARE'
+SET r:Prepare
+RETURN r
+
+MATCH (r:Routine)
+WHERE LEFT(r.type,7) = 'PUBLISH'
+SET r:Publish
+RETURN r
+
+MATCH (r:Routine)
+WHERE r.type = 'dbo'
+SET r:dbo
+RETURN r
+
+//create index to speed up match
+CREATE INDEX ON :Table(Name)
+CREATE INDEX ON :Routine(Name)
+
+//load usp2table.csv to graph db
+LOAD CSV WITH HEADERS FROM 'file:///usp2table.csv' AS line
+MATCH (f:Routine { name: line.usp_full_name}),(t:Table { name: line.table_full_name})
+CREATE (f)-[:REF_TO]->(t)  
+
+
+
+//load usp2usp.csv to graph db
+LOAD CSV WITH HEADERS FROM 'file:///usp2usp.csv' AS line
+MATCH (f:Routine { name: line.usp_full_name}),(t:Routine { name: line.ref_usp_full_name})
+CREATE (f)-[:CALL]->(t)  
+
+
+//remove duplicates relationship between all nodes
+match (s)-[r]->(n) 
+with s,n,type(r) as t, tail(collect(r)) as coll 
+foreach(x in coll | delete x)
