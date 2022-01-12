@@ -32,30 +32,37 @@ LOAD CSV WITH HEADERS FROM 'file:///usp.csv' AS line
 CREATE (:Routine {name: line.routine_full_name, schema: line.schema_name, short_name: line.routine_name, type: line.type, last_exe_date: line.last_execution_time, create_date: line.create_date, modify_date: line.modify_date, exe_count: toInteger(line.execution_count)})
 
 MATCH (r:Routine)
-WHERE r.type = 'ANALYSE'
+WHERE LEFT(r.schema,7) = 'ANALYSE'
 SET r:Analyse
 RETURN r
 
 MATCH (r:Routine)
-WHERE r.type = 'PREPARE'
+WHERE LEFT(r.schema,7) = 'PREPARE'
 SET r:Prepare
 RETURN r
 
 MATCH (r:Routine)
-WHERE LEFT(r.type,7) = 'PUBLISH'
+WHERE LEFT(r.schema,7) = 'PUBLISH'
 SET r:Publish
 RETURN r
 
 MATCH (r:Routine)
-WHERE r.type = 'dbo'
+WHERE r.schema = 'dbo'
 SET r:dbo
 RETURN r
 
 //create index to speed up match
-CREATE INDEX ON :Table(Name)
-CREATE INDEX ON :Routine(Name)
+//CREATE INDEX ON :Table(Name)
+CREATE INDEX TableIndex
+FOR (n:Table)
+ON (n.name)
+//CREATE INDEX ON :Routine(Name)
+CREATE INDEX RoutineIndex
+FOR (n:Routine)
+ON (n.name)
 
 //load usp2table.csv to graph db
+:auto USING PERIODIC COMMIT
 LOAD CSV WITH HEADERS FROM 'file:///usp2table.csv' AS line
 MATCH (f:Routine { name: line.usp_full_name}),(t:Table { name: line.table_full_name})
 CREATE (f)-[:REF_TO]->(t)  
@@ -63,6 +70,7 @@ CREATE (f)-[:REF_TO]->(t)
 
 
 //load usp2usp.csv to graph db
+:auto USING PERIODIC COMMIT
 LOAD CSV WITH HEADERS FROM 'file:///usp2usp.csv' AS line
 MATCH (f:Routine { name: line.usp_full_name}),(t:Routine { name: line.ref_usp_full_name})
 CREATE (f)-[:CALL]->(t)  
