@@ -1,3 +1,5 @@
+match (n) detach delete n
+
 //load table.csv to graph db
 
 LOAD CSV WITH HEADERS FROM 'file:///table.csv' AS line
@@ -68,7 +70,6 @@ MATCH (f:Routine { name: line.usp_full_name}),(t:Table { name: line.table_full_n
 CREATE (f)-[:REF_TO]->(t)  
 
 
-
 //load usp2usp.csv to graph db
 :auto USING PERIODIC COMMIT
 LOAD CSV WITH HEADERS FROM 'file:///usp2usp.csv' AS line
@@ -80,3 +81,11 @@ CREATE (f)-[:CALL]->(t)
 match (s)-[r]->(n) 
 with s,n,type(r) as t, tail(collect(r)) as coll 
 foreach(x in coll | delete x)
+
+
+//find a sample graph
+match (p)-[:REF_TO]->(t)
+where t.name != 'PREPARE.AUDIT_INGESTION_SUMMARY'
+return p, t
+
+
