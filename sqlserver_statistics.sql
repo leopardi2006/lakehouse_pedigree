@@ -115,7 +115,8 @@ where 1 =1;
 
 
 
-
+/*
+--'[' is a wildcard in sql like
 create view v_does_contain_raw as
 select 
     schema_name as usp_schema,
@@ -131,9 +132,29 @@ select
         definition
 from 
     dbo.v_outer_join
+*/
+
+create view [dbo].[v_does_contain_raw] as
+select 
+    schema_name as usp_schema,
+    usp_name,
+    table_name1 as table_name,
+        CAST(
+            CASE 
+                WHEN REPLACE(REPLACE(definition,'[',''),']','') like '%'+table_name1 +'%'
+                THEN 1
+                --WHEN definition like '%'+ table_name2 +'%'
+                --THEN 1
+                ELSE 0
+            END AS bit
+        ) as does_contain,
+        definition
+from 
+    dbo.v_outer_join
+GO
 
 
-create view v_sp_does_contain_raw as 
+ALTER view [dbo].[v_sp_does_contain_raw] as 
 SELECT [schema_name]
       ,[usp_name]
       ,[definition]
@@ -143,12 +164,14 @@ SELECT [schema_name]
       ,[usp_name2]
       ,CAST(
             CASE
-                WHEN (definition like '%'+ usp_name1 +'%') OR (definition like '%'+ usp_name2 +'%')
+                WHEN (REPLACE(REPLACE(definition,'[',''),']','') like '%'+ usp_name1 +'%') 
+                --OR (definition like '%'+ usp_name2 +'%')
                 THEN 1
                 ELSE 0
             END AS bit
         ) as does_contain_usp
   FROM [dbo].[v_sp_outer_join] 
+GO
 
 
 
