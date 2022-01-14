@@ -85,7 +85,19 @@ foreach(x in coll | delete x)
 
 //find a sample graph
 match (p)-[:REF_TO]->(t)
-where t.name != 'PREPARE.AUDIT_INGESTION_SUMMARY'
+where t.name <> 'PREPARE.AUDIT_INGESTION_SUMMARY'
+return p, t
+
+match (p)-[]->(t)
+where t.name <> 'PREPARE.AUDIT_INGESTION_SUMMARY'
 return p, t
 
 
+//find the pedigree of a specific published table
+match (b)-[r1]->(s)-[r2]->(g)
+return b,r1,
+
+
+MATCH (b:Table:Prepare), (g:Table:Publish{name:'PUBLISH.ANFIELD_LOY_offer_SUMMARY'})
+MATCH p=shortestPath((b)-[:REF_TO *..5]-(g))
+RETURN p
