@@ -1,4 +1,4 @@
---applies to Azure Synapse
+--applies to Azure Synapse (maybe SQL Server as well)
 
  -- Get a list of tables and views in the current database
  select table_catalog [database], table_schema [schema], table_name [name], table_type [type]
